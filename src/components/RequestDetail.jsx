@@ -1,296 +1,197 @@
-// RequestDetail – vollständige Ansicht einer Request
-
 import { useState } from 'react'
-import DecisionModal from './DecisionModal.jsx'
+import DecisionView from './DecisionView.jsx'
 
-const STATUS_LABELS = {
-  missing: 'fehlt',
-  present: 'vorhanden',
-  unclear: 'unklar',
-  pending: 'ausstehend',
-  open: 'offen',
-  decided: 'entschieden',
+const STATUS_MAP = {
+  missing:  { label: 'Fehlt',      bg: '#FCEBEB', color: '#A32D2D' },
+  present:  { label: 'Vorhanden',  bg: '#EAF3DE', color: '#3B6D11' },
+  unclear:  { label: 'Unklar',     bg: '#FAEEDA', color: '#854F0B' },
+  pending:  { label: 'Ausstehend', bg: '#F1EFE8', color: '#5F5E5A' },
 }
 
 const OWNER_COLORS = {
-  blue:  { bg: '#D9E0FD', color: '#4F6EF7' },
-  teal:  { bg: '#9FE1CB', color: '#0F6E56' },
-  coral: { bg: '#F5C4B3', color: '#993C1D' },
-  gray:  { bg: '#E8E6E0', color: '#5F5E5A' },
+  blue:  { bg: '#D9E0FD', text: '#4F6EF7' },
+  teal:  { bg: '#9FE1CB', text: '#0F6E56' },
+  coral: { bg: '#F5C4B3', text: '#993C1D' },
+  gray:  { bg: '#E8E6E0', text: '#5F5E5A' },
+  purple:{ bg: '#CECBF6', text: '#534AB7' },
 }
 
-function Avatar({ initials, colorKey, size = 20 }) {
+function Avatar({ initials, colorKey, size = 26 }) {
   const c = OWNER_COLORS[colorKey] || OWNER_COLORS.gray
   return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%',
-      background: c.bg, color: c.color,
-      fontSize: size * 0.45, fontWeight: 500,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      flexShrink: 0,
-    }}>
+    <div style={{ width: size, height: size, borderRadius: '50%', background: c.bg, color: c.text, fontSize: size * 0.38, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
       {initials}
     </div>
   )
 }
 
-function Section({ title, icon, count, children, defaultOpen = true }) {
-  const [open, setOpen] = useState(defaultOpen)
-  return (
-    <div style={{
-      background: '#fff',
-      border: '0.5px solid #e8e6e0',
-      borderRadius: 12,
-      marginBottom: 16,
-      overflow: 'hidden',
-    }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        style={{
-          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '14px 18px',
-          borderBottom: open ? '0.5px solid #e8e6e0' : 'none',
-          background: 'none', border: 'none',
-          borderBottom: open ? '0.5px solid #e8e6e0' : 'none',
-          cursor: 'pointer',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 15, color: '#bbb' }}>{icon}</span>
-          <span style={{ fontSize: 13, fontWeight: 500 }}>{title}</span>
-          <span style={{
-            fontSize: 11, color: '#aaa',
-            background: '#F1EFE8', borderRadius: 20,
-            padding: '1px 8px',
-          }}>{count}</span>
-        </div>
-        <span style={{
-          fontSize: 12, color: '#ccc',
-          transform: open ? 'rotate(180deg)' : 'none',
-          transition: 'transform 0.2s',
-          display: 'inline-block',
-        }}>▾</span>
-      </button>
-      {open && <div>{children}</div>}
-    </div>
-  )
+function Badge({ status }) {
+  const s = STATUS_MAP[status] || { label: status, bg: '#eee', color: '#666' }
+  return <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 20, background: s.bg, color: s.color, whiteSpace: 'nowrap' }}>{s.label}</span>
 }
 
 export default function RequestDetail({ request, onUpdate }) {
-  const [modalOpen, setModalOpen] = useState(false)
+  const [decisionView, setDecisionView] = useState(null) // null = main, 0/1 = decision index
 
-  function handleSaveDecision({ what, why }) {
-    const today = new Date().toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' })
-    const newEntry = {
-      id: Date.now(),
-      what,
-      why,
-      who: 'Marc Keller',
-      whoInitials: 'MK',
-      date: today,
-    }
-    const newReadiness = Math.min(100, request.readiness + 20)
-    onUpdate({
-      ...request,
-      readiness: newReadiness,
-      log: [newEntry, ...request.log],
-    })
-    setModalOpen(false)
+  if (decisionView !== null) {
+    return (
+      <DecisionView
+        request={request}
+        initialIndex={decisionView}
+        onBack={() => setDecisionView(null)}
+        onUpdate={onUpdate}
+      />
+    )
   }
 
-  const presentInputs = request.inputs.filter(i => i.status === 'present').length
+  const openDecisions = request.decisions.filter(d => d.status === 'open').length
+  const decidedDecisions = request.decisions.filter(d => d.status === 'decided').length
+
+  // Donut math
+  const r = 26, circ = 2 * Math.PI * r
+  const offset = circ - (request.readiness / 100) * circ
 
   return (
-    <div style={{ position: 'relative', height: '100%' }}>
-      <main style={{
-        flex: 1, overflowY: 'auto',
-        padding: '28px 32px',
-        height: '100%',
-      }}>
+    <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', minWidth: 0 }}>
 
-        {/* Breadcrumb */}
-        <div style={{ fontSize: 11, color: '#bbb', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
-          ☰ Requests › {request.department}
-        </div>
-
-        {/* Title */}
-        <div style={{ marginBottom: 24 }}>
-          <h1 style={{
-            fontSize: 22, fontWeight: 500, letterSpacing: '-0.4px',
-            lineHeight: 1.3, marginBottom: 12,
-          }}>
+      {/* Header */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.4px', color: '#1a1a1a', margin: 0 }}>
             {request.title}
           </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#888' }}>
-              <span style={{ fontSize: 14, color: '#ccc' }}>◎</span>
-              {request.owner}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#888' }}>
-              <span style={{ fontSize: 14, color: '#ccc' }}>◷</span>
-              Deadline: {request.deadline}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#888' }}>
-              <span style={{ fontSize: 14, color: '#ccc' }}>◈</span>
-              {request.category}
-            </div>
-            <span style={{
-              fontSize: 11, fontWeight: 500,
-              padding: '3px 10px', borderRadius: 20,
-              background: request.statusColor === 'green' ? '#EAF3DE' : '#FAEEDA',
-              color: request.statusColor === 'green' ? '#3B6D11' : '#854F0B',
-            }}>
-              {request.status}
-            </span>
-          </div>
+          <span style={{ fontSize: 12, color: '#aaa', background: '#F1EFE8', padding: '2px 8px', borderRadius: 20, fontWeight: 500 }}>
+            REQ-2025-045
+          </span>
+          <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#bbb', padding: '0 4px', fontSize: 18, lineHeight: 1 }}>···</button>
         </div>
 
-        {/* Next Step */}
-        <div style={{
-          background: '#EEF1FE',
-          border: '0.5px solid rgba(79,110,247,0.2)',
-          borderRadius: 12, padding: '16px 20px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          marginBottom: 20, gap: 16,
-        }}>
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#4F6EF7', marginBottom: 4 }}>
-              Nächster Schritt
+        {/* Meta row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', border: '1px solid #f0ede8', borderRadius: 10, overflow: 'hidden', background: '#fff' }}>
+          {[
+            { label: 'Erstellt von', content: <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4 }}><Avatar initials="SB" colorKey="coral" size={22} /><span style={{ fontSize: 12.5, fontWeight: 500 }}>Sascha Büchel</span></div> },
+            { label: 'Erstellt am', content: <div style={{ fontSize: 12.5, fontWeight: 500, marginTop: 6 }}>20. Mai 2025</div> },
+            { label: 'Kategorie', content: <div style={{ fontSize: 12.5, fontWeight: 500, marginTop: 6 }}>Verpackung</div> },
+            { label: 'Gesamtdeadline', content: <><div style={{ fontSize: 12.5, fontWeight: 500, color: '#BA7517', marginTop: 6 }}>{request.deadline}</div><div style={{ fontSize: 10.5, color: '#bbb' }}>Keine Einzeldeadlines.</div></> },
+          ].map((cell, i) => (
+            <div key={i} style={{ padding: '10px 14px', borderRight: i < 3 ? '1px solid #f0ede8' : 'none' }}>
+              <div style={{ fontSize: 11, color: '#bbb', marginBottom: 2 }}>{cell.label}</div>
+              {cell.content}
             </div>
-            <div style={{ fontSize: 14, fontWeight: 500 }}>{request.nextStep}</div>
+          ))}
+        </div>
+      </div>
+
+      {/* Readiness + Next Step */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, background: '#fff', border: '1px solid #f0ede8', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
+        {/* Donut */}
+        <div style={{ position: 'relative', width: 64, height: 64, flexShrink: 0 }}>
+          <svg width="64" height="64" viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r={r} fill="none" stroke="#F1EFE8" strokeWidth="6"/>
+            <circle cx="32" cy="32" r={r} fill="none" stroke="#EF9F27" strokeWidth="6"
+              strokeDasharray={circ} strokeDashoffset={offset}
+              strokeLinecap="round" transform="rotate(-90 32 32)"/>
+          </svg>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#1a1a1a' }}>
+            {request.readiness}%
           </div>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 11, color: '#bbb', marginBottom: 2 }}>Readiness</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#BA7517', marginBottom: 4 }}>Nicht bereit</div>
+          <div style={{ fontSize: 12, color: '#888', lineHeight: 1.5 }}>{request.readinessMessage}</div>
+        </div>
+        {/* Next step */}
+        <div style={{ flexShrink: 0, background: '#F7F7F5', border: '1px solid #f0ede8', borderRadius: 10, padding: '12px 14px', width: 170 }}>
+          <div style={{ fontSize: 10.5, color: '#bbb', marginBottom: 4 }}>Nächster Schritt</div>
+          <div style={{ fontSize: 12, fontWeight: 500, color: '#1a1a1a', lineHeight: 1.4, marginBottom: 10 }}>{request.nextStep}</div>
           <button
-            onClick={() => setModalOpen(true)}
-            style={{
-              fontSize: 12, padding: '7px 14px',
-              background: '#4F6EF7', color: '#fff',
-              border: 'none', borderRadius: 8, cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
+            onClick={() => setDecisionView(0)}
+            style={{ width: 26, height: 26, borderRadius: '50%', background: '#4F6EF7', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 'auto' }}
           >
-            Anfragen →
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </button>
         </div>
+      </div>
 
-        {/* Readiness */}
-        <div style={{
-          background: '#fff', border: '0.5px solid #e8e6e0',
-          borderRadius: 12, padding: '20px 24px', marginBottom: 20,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <div style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#bbb' }}>
-              Readiness
-            </div>
-            <div style={{ fontSize: 28, fontWeight: 500, letterSpacing: '-0.5px' }}>
-              {request.readiness}<span style={{ fontSize: 16, color: '#bbb', fontWeight: 400 }}>%</span>
-            </div>
+      {/* Two column: Inputs + Decisions */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+
+        {/* Pflicht-Inputs */}
+        <div style={{ background: '#fff', border: '1px solid #f0ede8', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #f0ede8' }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: '#1a1a1a' }}>Pflicht-Inputs</span>
+            <span style={{ fontSize: 11, background: '#F1EFE8', color: '#888', borderRadius: 20, padding: '1px 8px', fontWeight: 500 }}>{request.inputs.length}</span>
           </div>
-          <div style={{ height: 4, borderRadius: 99, background: '#F1EFE8', marginBottom: 12 }}>
-            <div style={{
-              height: 4, borderRadius: 99,
-              background: '#4F6EF7',
-              width: `${request.readiness}%`,
-              transition: 'width 0.4s ease',
-            }} />
+          {/* Table header */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 20px', gap: 8, padding: '7px 16px', borderBottom: '1px solid #f5f3ef' }}>
+            {['Input', 'Status', 'Verantwortlich', ''].map((h, i) => (
+              <div key={i} style={{ fontSize: 10.5, color: '#bbb', fontWeight: 500 }}>{h}</div>
+            ))}
           </div>
-          <div style={{ fontSize: 13, color: '#888', lineHeight: 1.5 }}>
-            {request.readinessMessage}
+          {request.inputs.map((inp, i) => (
+            <div key={inp.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 20px', alignItems: 'center', gap: 8, padding: '9px 16px', borderBottom: i < request.inputs.length - 1 ? '1px solid #f5f3ef' : 'none', cursor: 'pointer' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#fafaf8'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <div>
+                <div style={{ fontSize: 12.5, color: '#1a1a1a' }}>{inp.name}</div>
+                {inp.detail && <div style={{ fontSize: 10.5, color: '#bbb' }}>{inp.detail}</div>}
+              </div>
+              <Badge status={inp.status} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Avatar initials={inp.ownerInitials} colorKey={inp.ownerColor} size={20} />
+                <span style={{ fontSize: 11, color: '#666' }}>{inp.owner.split(' ')[0]} {inp.owner.split(' ')[1]?.[0]}.</span>
+              </div>
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M4.5 3l4 3.5-4 3.5" stroke="#ccc" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
+          ))}
+          <div style={{ padding: '10px 16px', borderTop: '1px solid #f5f3ef' }}>
+            <button style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#4F6EF7', background: 'none', border: 'none', cursor: 'pointer' }}>
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v11M1 6.5h11" stroke="#4F6EF7" strokeWidth="1.4" strokeLinecap="round"/></svg>
+              Input hinzufügen
+            </button>
           </div>
         </div>
 
-        {/* Inputs */}
-        <Section title="Pflicht-Inputs" icon="☑" count={`${presentInputs} von ${request.inputs.length} vorhanden`}>
-          {request.inputs.map((inp, i) => (
-            <div key={inp.id} style={{
-              display: 'grid',
-              gridTemplateColumns: '32px 1fr 90px 110px',
-              alignItems: 'center',
-              gap: 8,
-              padding: '11px 18px',
-              borderBottom: i < request.inputs.length - 1 ? '0.5px solid #f3f1ec' : 'none',
-            }}>
-              <div style={{
-                width: 28, height: 28, borderRadius: 8,
-                background: '#F7F7F5',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 14, color: '#bbb',
-              }}>◈</div>
-              <div>
-                <div style={{ fontSize: 13 }}>{inp.name}</div>
-                <div style={{ fontSize: 11, color: '#bbb' }}>{inp.detail}</div>
-              </div>
-              <span className={`badge badge-${inp.status}`}>{STATUS_LABELS[inp.status]}</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#888' }}>
-                <Avatar initials={inp.ownerInitials} colorKey={inp.ownerColor} size={18} />
-                {inp.owner.split(' ')[0]}
-              </div>
-            </div>
-          ))}
-        </Section>
-
-        {/* Decisions */}
-        <Section
-          title="Entscheidungspunkte"
-          icon="⑂"
-          count={`${request.decisions.filter(d => d.status === 'open').length} offen · ${request.decisions.filter(d => d.status === 'decided').length} entschieden`}
-        >
-          {request.decisions.map((dec, i) => (
-            <div
-              key={dec.id}
-              onClick={() => dec.status === 'open' && setModalOpen(true)}
-              style={{
-                padding: '14px 18px',
-                borderBottom: i < request.decisions.length - 1 ? '0.5px solid #f3f1ec' : 'none',
-                cursor: dec.status === 'open' ? 'pointer' : 'default',
-              }}
+        {/* Entscheidungspunkte */}
+        <div style={{ background: '#fff', border: '1px solid #f0ede8', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #f0ede8' }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: '#1a1a1a' }}>Entscheidungspunkte</span>
+            <span style={{ fontSize: 11, background: '#F1EFE8', color: '#888', borderRadius: 20, padding: '1px 8px', fontWeight: 500 }}>{request.decisions.length}</span>
+          </div>
+          {request.decisions.filter(d => d.status === 'open').map((dec, i) => (
+            <div key={dec.id}
+              onClick={() => setDecisionView(request.decisions.indexOf(dec))}
+              style={{ padding: '14px 16px', borderBottom: '1px solid #f5f3ef', cursor: 'pointer' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#fafaf8'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              <div style={{ fontSize: 13, marginBottom: 7, lineHeight: 1.4 }}>
-                {dec.question}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
+                <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#F1EFE8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1, fontSize: 11, fontWeight: 600, color: '#aaa' }}>?</div>
+                <div style={{ fontSize: 12.5, color: '#1a1a1a', lineHeight: 1.4 }}>{dec.question}</div>
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0, marginTop: 2 }}><path d="M4.5 3l4 3.5-4 3.5" stroke="#ccc" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span className={`badge badge-${dec.status}`}>{STATUS_LABELS[dec.status]}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#888' }}>
-                  <Avatar initials={dec.ownerInitials} colorKey={dec.ownerColor} size={16} />
-                  {dec.owner}
+              <div style={{ fontSize: 11, color: '#bbb', marginBottom: 6 }}>Entscheider</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Avatar initials={dec.ownerInitials} colorKey={dec.ownerColor} size={20} />
+                  <span style={{ fontSize: 11, color: '#666' }}>{dec.owner} · {dec.ownerDept || ''}</span>
                 </div>
+                <span style={{ fontSize: 11, fontWeight: 500, background: '#FCEBEB', color: '#A32D2D', padding: '2px 8px', borderRadius: 20 }}>Offen</span>
               </div>
             </div>
           ))}
-        </Section>
+          <div style={{ padding: '10px 16px', borderTop: '1px solid #f5f3ef' }}>
+            <button style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#4F6EF7', background: 'none', border: 'none', cursor: 'pointer' }}>
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v11M1 6.5h11" stroke="#4F6EF7" strokeWidth="1.4" strokeLinecap="round"/></svg>
+              Entscheidungspunkt hinzufügen
+            </button>
+          </div>
+        </div>
 
-        {/* Log */}
-        <Section title="Entscheidungslog" icon="◷" count={`${request.log.length} ${request.log.length === 1 ? 'Eintrag' : 'Einträge'}`}>
-          {request.log.length === 0 ? (
-            <div style={{ padding: '20px 18px', fontSize: 13, color: '#bbb' }}>
-              Noch keine Entscheidungen dokumentiert.
-            </div>
-          ) : request.log.map((entry, i) => (
-            <div key={entry.id} style={{
-              padding: '16px 18px',
-              borderBottom: i < request.log.length - 1 ? '0.5px solid #f3f1ec' : 'none',
-            }}>
-              <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 5 }}>{entry.what}</div>
-              <div style={{ fontSize: 12, color: '#888', marginBottom: 8, lineHeight: 1.5 }}>{entry.why}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#888' }}>
-                  <Avatar initials={entry.whoInitials} colorKey="blue" size={16} />
-                  {entry.who}
-                </div>
-                <div style={{ fontSize: 11, color: '#bbb' }}>{entry.date}</div>
-              </div>
-            </div>
-          ))}
-        </Section>
-
-        <div style={{ height: 32 }} />
-      </main>
-
-      {modalOpen && (
-        <DecisionModal
-          onSave={handleSaveDecision}
-          onClose={() => setModalOpen(false)}
-        />
-      )}
+      </div>
+      <div style={{ height: 32 }} />
     </div>
   )
 }

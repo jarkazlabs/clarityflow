@@ -16,15 +16,16 @@ export const REQUESTS = [
       'Es fehlen noch wichtige Inputs und zwei offene Entscheidungen. Operative Arbeit sollte erst starten, wenn diese Punkte geklärt sind.',
     nextStep: 'Entscheidung von Produktmanagement zur Vertriebsstrategie anfragen',
     inputs: [
-      { id: 1, name: 'Produktbilder', detail: 'Freisteller + Lifestyle', status: 'missing', owner: 'Lena Braun', ownerInitials: 'LB', ownerColor: 'coral' },
-      { id: 2, name: 'Produktdatenblatt', detail: 'Technische Spezifikationen', status: 'present', owner: 'Marc Keller', ownerInitials: 'MK', ownerColor: 'blue' },
-      { id: 3, name: 'Verpackungsbasis', detail: 'Dimension + Material', status: 'unclear', owner: 'Tim Wenzel', ownerInitials: 'TW', ownerColor: 'teal' },
-      { id: 4, name: 'Freigabe Vertrieb', detail: 'Schriftliche Bestätigung', status: 'present', owner: 'Ralf Huber', ownerInitials: 'RH', ownerColor: 'gray' },
+      { id: 1, name: 'Produktbilder', detail: 'Freisteller + Lifestyle', status: 'missing', owner: 'Lukas H.', ownerInitials: 'LH', ownerColor: 'blue' },
+      { id: 2, name: 'Produktdaten / Texte', detail: '', status: 'present', owner: 'Anna K.', ownerInitials: 'AK', ownerColor: 'teal' },
+      { id: 3, name: 'Verpackungsbasis', detail: 'alte Version', status: 'unclear', owner: 'Sascha Büchel', ownerInitials: 'SB', ownerColor: 'coral' },
+      { id: 4, name: 'Freigabe Vertrieb', detail: '', status: 'pending', owner: 'Thomas W.', ownerInitials: 'TW', ownerColor: 'gray' },
+      { id: 5, name: 'Finale Produktentscheidung', detail: '', status: 'missing', owner: 'Miriam L.', ownerInitials: 'ML', ownerColor: 'purple' },
     ],
     decisions: [
-      { id: 1, question: 'Wird die Rückleuchte R7 als Einzelprodukt oder ausschließlich im Set verkauft?', owner: 'Marc Keller', ownerInitials: 'MK', ownerColor: 'blue', status: 'open' },
-      { id: 2, question: 'Welche Märkte werden zur Einführung initial adressiert (DE, AT, CH)?', owner: 'Tim Wenzel', ownerInitials: 'TW', ownerColor: 'teal', status: 'open' },
-      { id: 3, question: 'Preispunkt: Positionierung im Premium-Segment (≥ 89 €)?', owner: 'Marc Keller', ownerInitials: 'MK', ownerColor: 'blue', status: 'decided' },
+      { id: 1, question: 'Wird die Rückleuchte R7 als Einzelprodukt oder ausschließlich im Set verkauft?', owner: 'Miriam L.', ownerInitials: 'ML', ownerColor: 'purple', ownerDept: 'Produktmanagement', status: 'open', context: 'Soll die Rückleuchte zusätzlich als Einzelprodukt verkauft werden oder bleibt sie ausschließlich als Set-Variante erhältlich?' },
+      { id: 2, question: 'Welche Verpackungsbasis soll verwendet werden?', owner: 'Sascha Büchel', ownerInitials: 'SB', ownerColor: 'coral', ownerDept: 'Marketing', status: 'open', context: 'Muss die bestehende Verpackungsvorlage verwendet werden, oder kann eine neue Basis gewählt werden?' },
+      { id: 3, question: 'Preispunkt: Positionierung im Premium-Segment (≥ 89 €)?', owner: 'Marc Keller', ownerInitials: 'MK', ownerColor: 'blue', ownerDept: 'Produktmanagement', status: 'decided', context: 'Soll das Produkt im Premium-Segment ab 89 € positioniert werden?' },
     ],
     log: [
       {
