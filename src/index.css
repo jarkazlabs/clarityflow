@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: #F7F7F5;
+  color: #1a1a1a;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #ddd; border-radius: 99px; }
+
+/* Status badges */
+.badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+.badge-missing  { background: #FCEBEB; color: #A32D2D; }
+.badge-present  { background: #EAF3DE; color: #3B6D11; }
+.badge-unclear  { background: #FAEEDA; color: #854F0B; }
+.badge-pending  { background: #F1EFE8; color: #5F5E5A; }
+.badge-open     { background: #FCEBEB; color: #A32D2D; }
+.badge-decided  { background: #EAF3DE; color: #3B6D11; }
